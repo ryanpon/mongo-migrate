@@ -21,7 +21,6 @@ var options = { args: [] };
  */
 var previousWorkingDirectory = process.cwd(),
 	cwd = process.cwd();
-
 var configFileName = 'default-config.json',
 		dbConfig = null,
 		dbProperty = 'mongoAppDb';
@@ -108,7 +107,7 @@ function pad(n) {
 	return Array(5 - n.toString().length).join('0') + n;
 }
 
-function runMongoMigrate(direction, migrationEnd) {
+function runMongoMigrate(direction, migrationEnd, cb) {
 	if (typeof direction !== 'undefined') {
 		options.command = direction;
 	}
@@ -246,7 +245,7 @@ function runMongoMigrate(direction, migrationEnd) {
 		db.getConnection(dbConfig || require(cwd + path.sep + configFileName)[dbProperty], function (err, db) {
 			if (err) {
 				console.error('Error connecting to database');
-				process.exit(1);
+				return cb(err);
 			}
 			var migrationCollection = db.migrationCollection,
 					dbConnection = db.connection;
@@ -254,7 +253,7 @@ function runMongoMigrate(direction, migrationEnd) {
 			migrationCollection.find({}).sort({num: -1}).limit(1).toArray(function (err, migrationsRun) {
 				if (err) {
 					console.error('Error querying migration collection', err);
-					process.exit(1);
+					return cb(err);
 				}
 
 				var lastMigration = migrationsRun[0],
@@ -266,7 +265,7 @@ function runMongoMigrate(direction, migrationEnd) {
 					migrationCollection: migrationCollection
 				});
 				migrations(direction, lastMigrationNum, migrateTo).forEach(function(path){
-					var mod = require(cwd + '/' + path);
+					var mod = require(path);
 					migrate({
 						num: parseInt(path.split('/')[1].match(/^(\d+)/)[0], 10),
 						title: path,
@@ -285,7 +284,7 @@ function runMongoMigrate(direction, migrationEnd) {
 
 				set.on('save', function(){
 					log('migration', 'complete');
-					process.exit();
+					return cb();
 				});
 
 				set[direction](null, lastMigrationNum);
@@ -297,7 +296,7 @@ function runMongoMigrate(direction, migrationEnd) {
 	var command = options.command || 'up';
 	if (!(command in commands)) abort('unknown command "' + command + '"');
 	command = commands[command];
-	command.apply(this, options.args);
+	return command.apply(this, options.args);
 }
 
 function chdir(dir) {
