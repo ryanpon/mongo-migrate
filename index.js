@@ -265,7 +265,7 @@ function runMongoMigrate(direction, migrationEnd, cb) {
 					migrationCollection: migrationCollection
 				});
 				migrations(direction, lastMigrationNum, migrateTo).forEach(function(path){
-					var mod = require(path);
+					var mod = require(path.resolve(path));
 					migrate({
 						num: parseInt(path.split('/')[1].match(/^(\d+)/)[0], 10),
 						title: path,
